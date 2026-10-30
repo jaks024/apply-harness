@@ -1,0 +1,42 @@
+{
+  "concurrency": 4,
+  "chrome": {
+    "profileDir": "data/chrome-profile",
+    "channel": "chrome"
+  },
+  "llm": {
+    "provider": "claude-cli",
+    "agentMaxSteps": 30,
+    "claude-cli": {
+      "bin": "claude",
+      "fieldModel": "haiku",
+      "agentModel": "sonnet",
+      "maxParallel": 4,
+      "timeoutMs": 240000
+    },
+    "gemini": {
+      "project": "",
+      "location": "global",
+      "fieldModel": "gemini-3.8-flash",
+      "agentModel": "gemini-4-argon"
+    }
+  },
+  "paths": {
+    "answers": "data/answers.json",
+    "facts": "data/facts.md",
+    "resume": "data/resume/resume.pdf",
+    "transcript": "data/resume/transcript.pdf",
+    "accounts": "data/accounts.json",
+    "ledger": "data/ledger.jsonl",
+    "tracker": "data/jobs.json",
+    "fieldMemory": "data/field-memory.jsonl",
+    "queue": "data/queue.txt",
+    "runs": "data/runs"
+  },
+  "fill": {
+    "maxPages": 14,
+    "passesPerPage": 6,
+    "stuckRetries": 2,
+    "watchMinutes": 240
+  }
+}

@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apply Harness</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1b1f24; --muted: #5f6b7a; --line: #e3e7ec; --soft: #eef1f5;
+    --accent: #2f6fde; --accent-ink: #ffffff; --good: #1f8a4c; --good-soft: #e3f4ea; --warn: #b76e00; --warn-soft: #fff1d6;
+    --bad: #c2352b; --bad-soft: #fde8e6; --info-soft: #e7effd; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111418; --panel: #1a1e24; --ink: #e8ebef; --muted: #9aa5b2; --line: #2b313a; --soft: #222831;
+      --accent: #5b8ff0; --accent-ink: #0b1220; --good: #4cc27f; --good-soft: #17301f; --warn: #f0b04a; --warn-soft: #33270f;
+      --bad: #f07b72; --bad-soft: #3a1a18; --info-soft: #1b2638;
+    }
+  }
+  * { box-sizing: border-box; }
+  a { color: var(--accent); }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { padding: 2px 9px; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .chip b { color: var(--ink); }
+  .chip.hot { background: var(--warn-soft); color: var(--warn); }
+  .chip.hot b { color: var(--warn); }
+  .controls { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .stepper button { border: 0; border-radius: 0; padding: 4px 10px; }
+  .stepper span { padding: 0 10px; font-weight: 600; min-width: 28px; text-align: center; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 7px; padding: 4px 10px; cursor: pointer; }
+  button:hover { background: var(--soft); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.05); }
+  button.danger { color: var(--bad); }
+  button:disabled { opacity: .5; cursor: default; }
+  label.toggle { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; cursor: pointer; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; padding: 16px; max-width: 1500px; margin: 0 auto; }
+  @media (max-width: 1000px) { main { grid-template-columns: minmax(0, 1fr); } .controls { margin-left: 0; } }
+  section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 14px 0 8px; display: flex; gap: 8px; align-items: center; }
+  h2:first-child { margin-top: 2px; }
+  h2 .count { background: var(--soft); color: var(--ink); border-radius: 999px; padding: 0 7px; font-size: 12px; letter-spacing: 0; }
+  .empty { color: var(--muted); font-size: 13px; padding: 6px 0 2px; }
+  .card { border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; margin-bottom: 8px; background: var(--panel); }
+  .card.needs { border-color: var(--warn); background: var(--warn-soft); }
+  .card.ready { border-color: var(--good); }
+  .card .top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .card .who { font-weight: 600; }
+  .card .role { color: var(--muted); }
+  .badge { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--soft); color: var(--muted); white-space: nowrap; }
+  .badge.filling { background: var(--info-soft); color: var(--accent); }
+  .badge.needs_you, .badge.handoff { background: var(--warn-soft); color: var(--warn); }
+  .badge.at_review, .badge.submitted { background: var(--good-soft); color: var(--good); }
+  .badge.failed, .badge.closed, .badge.ineligible { background: var(--bad-soft); color: var(--bad); }
+  .note { margin: 4px 0 0; font-size: 13px; }
+  ul.flags { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--warn); }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .actions a { font-size: 13px; color: var(--accent); text-decoration: none; align-self: center; }
+  details { margin-top: 6px; font-size: 12.5px; }
+  details summary { cursor: pointer; color: var(--muted); }
+  pre.log { margin: 6px 0 0; padding: 8px; background: var(--soft); border-radius: 7px; max-height: 220px; overflow: auto; font: 11.5px/1.4 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+  .row-q { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .row-q:last-child { border-bottom: 0; }
+  .row-q .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-q .num { color: var(--muted); width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
+  .days { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .days button { border-radius: 999px; padding: 4px 11px; font-size: 13px; color: var(--muted); }
+  .days button b { color: var(--ink); font-weight: 600; }
+  .days button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .days button.on b { color: var(--accent-ink); }
+  .days button .n { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: .85; }
+  td.when { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+  input[type=search], select, textarea { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px; }
+  input[type=search] { flex: 1; min-width: 140px; }
+  textarea { width: 100%; min-height: 54px; resize: vertical; }
+  .table-wrap { max-height: 62vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #candTable { table-layout: fixed; }
+  #candTable col.c-sel { width: 34px; } #candTable col.c-co { width: 24%; } #candTable col.c-role { width: 30%; }
+  #candTable col.c-dates { width: 118px; }
+  #candTable td { overflow-wrap: anywhere; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { position: sticky; top: 0; background: var(--soft); font-weight: 600; font-size: 12px; color: var(--muted); z-index: 1; }
+  tr.dim td { opacity: .55; }
+  td.role { min-width: 160px; }
+  td .sub { color: var(--muted); font-size: 12px; }
+  .bar { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .muted { color: var(--muted); }
+  .sub.warn { color: var(--warn); }
+  tr.group td { background: var(--soft); font-weight: 600; font-size: 12.5px; position: sticky; top: 31px; z-index: 1; }
+  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+  .toast.show { opacity: 1; }
+  .conn { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); display: inline-block; }
+  .conn.on { background: var(--good); }
+  .small { font-size: 12px; font-weight: 400; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="conn" id="conn" title="Live connection"></span> Apply Harness</h1>
+  <div class="chips" id="chips"></div>
+  <div class="controls">
+    <span class="muted">Running at once</span>
+    <span class="stepper"><button id="cMinus" aria-label="Fewer">−</button><span id="cVal">–</span><button id="cPlus" aria-label="More">+</button></span>
+    <label class="toggle" title="On: a tab waiting for your Submit keeps its slot, so you never have more than the limit open. Off: the next job starts as soon as a form is filled."><input type="checkbox" id="holdSlot"> Review tabs use a slot</label>
+    <button id="pauseBtn">Pause</button>
+  </div>
+</header>
+
+<main>
+  <section class="panel" id="pipeline">
+    <h2>Needs you <span class="count" id="nNeeds">0</span></h2>
+    <div id="needs"></div>
+    <h2>Ready to submit <span class="count" id="nReady">0</span></h2>
+    <div id="ready"></div>
+    <h2>Filling <span class="count" id="nFilling">0</span></h2>
+    <div id="filling"></div>
+    <h2>Queue <span class="count" id="nQueue">0</span></h2>
+    <div id="queue"></div>
+    <h2>Done <span class="count" id="nDone">0</span></h2>
+    <div id="done"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Job tracker <span class="muted small">(data/jobs.json)</span></h2>
+    <div class="days" id="days"></div>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Search company, role, location">
+      <select id="plat"><option value="">All platforms</option></select>
+      <select id="sortBy" title="Sort">
+        <option value="platform">Sort: platform</option>
+        <option value="found">Sort: newest found</option>
+        <option value="posted">Sort: newest posted</option>
+      </select>
+      <label class="toggle"><input type="checkbox" id="hideApplied" checked> Hide applied, closed, no-sponsorship</label>
+      <button id="refreshBtn" title="Reload the job tracker">Refresh</button>
+    </div>
+    <div class="table-wrap">
+      <table id="candTable">
+        <colgroup><col class="c-sel"><col class="c-co"><col class="c-role"><col class="c-dates"><col></colgroup>
+        <thead><tr><th><input type="checkbox" id="selAll" aria-label="Select all"></th><th>Company</th><th>Role</th><th title="Found = when it was added to the tracker. Posted = when the employer published it.">Dates</th><th>Where</th></tr></thead>
+        <tbody id="cands"><tr><td colspan="5" class="muted">Loading the job tracker…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="bar">
+      <button class="primary" id="queueSel" disabled>Queue selected</button>
+      <span class="muted" id="candInfo"></span>
+    </div>
+
+    <h2>Add postings by URL</h2>
+    <textarea id="urls" placeholder="One posting URL per line (optionally: url | company | role)"></textarea>
+    <div class="bar"><button id="trackUrls" title="Save to the job tracker to apply later">Add to tracker</button><button id="addUrls">Queue now</button></div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let state = { jobs: [], concurrency: 4, paused: true, reviewHoldsSlot: true };
+let cands = [];
+let day = null; // null → newest batch on first load
+const selected = new Set();
+const openDetails = new Set();
+
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 3200); }
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+const act = (id, action) => api(`/api/jobs/${id}/${action}`, {}).catch((e) => toast(e.message));
+// Restart from the beginning: closes the job's tabs and queues a fresh run at the front of the queue.
+const restart = (j) => {
+  const msg = j.state === "submitted"
+    ? "This job is marked as submitted. Only continue if you did NOT actually submit it: the submitted record is removed, the tracker goes back to new, and it restarts from the beginning."
+    : ["filling", "needs_you", "at_review", "handoff"].includes(j.state)
+      ? "Restart this job from the beginning? Its open tab will be closed and anything filled so far is lost."
+      : "Restart this job from the beginning?";
+  if (!confirm(msg)) return;
+  api(`/api/jobs/${j.id}/restart`, {}).then((r) => r && r.note && toast(r.note)).catch((e) => toast(e.message));
+};
+
+// ---------- pipeline ----------
+const NEEDS = ["needs_you", "handoff"], DONE = ["submitted", "duplicate", "skipped", "closed", "failed", "ineligible"];
+const label = { queued: "queued", filling: "filling", needs_you: "needs you", at_review: "ready", handoff: "finish by hand", submitted: "submitted", duplicate: "already applied", skipped: "skipped", closed: "closed", failed: "failed", ineligible: "not eligible" };
+
+function card(j) {
+  const needs = NEEDS.includes(j.state) || (j.state === "at_review" && j.flags.length);
+  const ready = j.state === "at_review" && !j.flags.length;
+  const live = ["filling", "needs_you", "at_review", "handoff"].includes(j.state);
+  const det = (key, title, inner) => `<details data-k="${j.id}:${key}" ${openDetails.has(j.id + ":" + key) ? "open" : ""}><summary>${title}</summary>${inner}</details>`;
+  return `<div class="card ${needs ? "needs" : ready ? "ready" : ""}">
+    <div class="top"><span class="who">${esc(j.company || j.key)}</span><span class="role">${esc(j.role || "")}</span>
+      <span class="badge ${j.state}">${label[j.state] || j.state}</span><span class="badge">${esc(j.platform)}</span></div>
+    ${j.note ? `<div class="note">${esc(j.note)}</div>` : ""}
+    ${j.prior ? `<div class="note muted">${esc(j.prior)}</div>` : ""}
+    ${j.flags.length ? `<ul class="flags">${j.flags.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
+    ${j.reviews.length ? det("rev", `Written answers to check (${j.reviews.length})`, `<ul>${j.reviews.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`) : ""}
+    ${j.logTail.length ? det("log", "Log", `<pre class="log">${esc(j.logTail.join("\n"))}</pre>`) : ""}
+    <div class="actions">
+      ${live ? `<button class="primary" onclick="act('${j.id}','focus')">Show tab</button>` : ""}
+      ${live ? `<button class="danger" onclick="act('${j.id}','skip')">Skip</button>` : ""}
+      ${["failed", "closed", "handoff", "skipped", "duplicate", "ineligible"].includes(j.state) ? `<button onclick="act('${j.id}','retry')">${j.state === "duplicate" || j.state === "ineligible" || /^posting is closed/.test(j.note || "") ? "Apply anyway" : "Retry"}</button>` : ""}
+      ${j.state !== "queued" ? `<button onclick='restart(${JSON.stringify({ id: j.id, state: j.state })})'>${j.state === "submitted" ? "Not submitted — restart" : "Restart"}</button>` : ""}
+      ${j.state !== "submitted" && !/^passed/.test(j.note || "") ? `<button onclick="if(confirm('Pass on this job (not applicable)? Its tab closes and the tracker marks it pass.'))api('/api/jobs/${j.id}/pass',{}).then((r)=>r&&r.note&&toast(r.note)).catch((e)=>toast(e.message))">Pass</button>` : ""}
+      ${j.state !== "submitted" ? `<button onclick="if(confirm('Mark this job as applied (you submitted it yourself)? The tracker marks it applied.'))act('${j.id}','applied')">I applied myself</button>` : ""}
+      ${DONE.includes(j.state) && j.state !== "submitted" ? `<button onclick="act('${j.id}','remove')">Remove</button>` : ""}
+      <a href="${esc(j.url)}" target="_blank" rel="noopener">Posting ↗</a>
+    </div></div>`;
+}
+
+function renderPipeline() {
+  const js = state.jobs;
+  const needs = js.filter((j) => NEEDS.includes(j.state) || (j.state === "at_review" && j.flags.length));
+  const ready = js.filter((j) => j.state === "at_review" && !j.flags.length);
+  const filling = js.filter((j) => j.state === "filling");
+  const queued = js.filter((j) => j.state === "queued");
+  const done = js.filter((j) => DONE.includes(j.state)).sort((a, b) => (b.endedAt || "").localeCompare(a.endedAt || ""));
+  $("needs").innerHTML = needs.map(card).join("") || `<div class="empty">Nothing waiting on you.</div>`;
+  $("ready").innerHTML = ready.map(card).join("") || `<div class="empty">No filled forms waiting.</div>`;
+  $("filling").innerHTML = filling.map(card).join("") || `<div class="empty">${state.paused && queued.length ? "Paused. Press Resume." : "Idle."}</div>`;
+  $("queue").innerHTML = queued.map((j, i) => `<div class="row-q"><span class="num">${i + 1}</span>
+      <span class="grow"><b>${esc(j.company || j.key)}</b> <span class="muted">${esc(j.role || j.url)}</span></span>
+      <button onclick="act('${j.id}','top')" title="Move to top">⤒</button><button onclick="act('${j.id}','up')" title="Up">↑</button><button onclick="act('${j.id}','down')" title="Down">↓</button>
+      <button class="danger" onclick="act('${j.id}','remove')" title="Remove">✕</button></div>`).join("") || `<div class="empty">Queue is empty. Pick jobs from the tracker or paste URLs.</div>`;
+  $("done").innerHTML = done.map(card).join("") || `<div class="empty">Nothing finished yet.</div>`;
+  for (const d of document.querySelectorAll("#pipeline details")) d.addEventListener("toggle", () => d.open ? openDetails.add(d.dataset.k) : openDetails.delete(d.dataset.k));
+  for (const [id, n] of [["nNeeds", needs.length], ["nReady", ready.length], ["nFilling", filling.length], ["nQueue", queued.length], ["nDone", done.length]]) $(id).textContent = n;
+
+  const submittedToday = done.filter((j) => j.state === "submitted").length;
+  $("chips").innerHTML = [
+    [needs.length, "need you", needs.length > 0], [ready.length, "ready", false], [filling.length, "filling", false],
+    [queued.length, "queued", false], [submittedToday, "submitted", false],
+  ].map(([n, t, hot]) => `<span class="chip ${hot ? "hot" : ""}"><b>${n}</b> ${t}</span>`).join("");
+  $("cVal").textContent = state.concurrency;
+  $("holdSlot").checked = state.reviewHoldsSlot;
+  $("pauseBtn").textContent = state.paused ? "Resume" : "Pause";
+  $("pauseBtn").className = state.paused ? "primary" : "";
+  document.title = (needs.length ? `(${needs.length}) ` : "") + "Apply Harness";
+  renderCands(); // keeps "queued" markers in the picker current
+}
+
+// ---------- tracker picker ----------
+// A "batch" is everything added to the tracker on one local calendar day.
+const dayOf = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const todayStr = () => dayOf(new Date().toISOString());
+function dayLabel(day) {
+  const t = todayStr();
+  const y = dayOf(new Date(Date.now() - 864e5).toISOString());
+  if (day === t) return "Today";
+  if (day === y) return "Yesterday";
+  return new Date(day + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+const fmtFound = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+function ago(days) {
+  if (days <= 0) return "today";
+  if (days === 1) return "1 day ago";
+  if (days < 45) return `${days} days ago`;
+  if (days < 365) return `${Math.round(days / 30.4)} months ago`;
+  const y = days / 365;
+  return y < 1.5 ? "1 year ago" : `${Math.round(y)} years ago`;
+}
+function fmtPosted(d) {
+  if (!d) return `<span class="sub">Posted —</span>`;
+  const when = new Date(d + "T12:00:00");
+  const days = Math.round((Date.now() - when.getTime()) / 864e5);
+  const opts = when.getFullYear() === new Date().getFullYear() ? { month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" };
+  return `<span class="sub">Posted</span> ${esc(when.toLocaleDateString(undefined, opts))}<div class="sub${days > 120 ? " warn" : ""}">${ago(days)}</div>`;
+}
+// Easiest platforms first: they fill fastest and most reliably.
+const PLAT_ORDER = ["greenhouse", "lever", "ashby", "workday", "smartrecruiters", "icims", "oracle", "successfactors", "ukg", "taleo", "dayforce", "paycom", "adp", "other", "linkedin"];
+const PLAT_NAME = { greenhouse: "Greenhouse", lever: "Lever", ashby: "Ashby", workday: "Workday", smartrecruiters: "SmartRecruiters", icims: "iCIMS", oracle: "Oracle", successfactors: "SuccessFactors", ukg: "UKG", taleo: "Taleo", dayforce: "Dayforce", paycom: "Paycom", adp: "ADP", other: "Company sites & others", linkedin: "LinkedIn" };
+const platName = (p) => PLAT_NAME[p] || p;
+const platRank = (p) => { const i = PLAT_ORDER.indexOf(p); return i < 0 ? PLAT_ORDER.indexOf("other") : i; };
+function sorter() {
+  const mode = $("sortBy").value;
+  if (mode === "posted") return (a, b) => (b.posted || "").localeCompare(a.posted || "") || b.created.localeCompare(a.created);
+  if (mode === "found") return (a, b) => b.created.localeCompare(a.created);
+  return (a, b) => platRank(a.platform) - platRank(b.platform) || a.platform.localeCompare(b.platform) || b.created.localeCompare(a.created);
+}
+function renderDays(available) {
+  const days = [...new Set(cands.map((c) => dayOf(c.created)))].sort().reverse();
+  if (!cands.length) { $("days").innerHTML = ""; return; } // wait for the tracker before choosing a default day
+  if (day !== "all" && !days.includes(day)) day = days[0] ?? "all"; // newest batch (today, once something was added today)
+  const count = (d) => available.filter((c) => d === "all" || dayOf(c.created) === d).length;
+  $("days").innerHTML = days.slice(0, 10).map((d) => `<button data-day="${d}" class="${d === day ? "on" : ""}"><b>${dayLabel(d)}</b><span class="n">${count(d)}</span></button>`).join("")
+    + `<button data-day="all" class="${day === "all" ? "on" : ""}"><b>All open</b><span class="n">${count("all")}</span></button>`;
+}
+function renderCands() {
+  const q = $("q").value.trim().toLowerCase();
+  const plat = $("plat").value;
+  const hide = $("hideApplied").checked;
+  const queuedUrls = new Set(state.jobs.filter((j) => !["closed", "failed", "skipped"].includes(j.state)).map((j) => j.url));
+  const available = cands.filter((c) => !c.applied && !c.closed && !c.noSponsor && !queuedUrls.has(c.posting) && c.posting);
+  renderDays(available);
+  const rows = cands
+    .filter((c) => (day === "all" || dayOf(c.created) === day) && (!plat || c.platform === plat) && (!hide || (!c.applied && !c.closed && !c.noSponsor)) && (!q || `${c.company} ${c.role} ${c.location}`.toLowerCase().includes(q)))
+    .sort(sorter());
+  const byPlatform = $("sortBy").value === "platform";
+  let lastPlat = null;
+  $("cands").innerHTML = rows.map((c) => {
+    let head = "";
+    if (byPlatform && c.platform !== lastPlat) {
+      lastPlat = c.platform;
+      const group = rows.filter((x) => x.platform === c.platform);
+      const pickable = group.filter((x) => !(x.applied || x.closed || x.noSponsor || queuedUrls.has(x.posting) || !x.posting));
+      const allOn = pickable.length > 0 && pickable.every((x) => selected.has(x.id));
+      head = `<tr class="group"><td><input type="checkbox" data-group="${esc(c.platform)}" ${allOn ? "checked" : ""} ${pickable.length ? "" : "disabled"} aria-label="Select all ${esc(c.platform)}"></td><td colspan="4">${esc(platName(c.platform))} <span class="muted">· ${group.length}${pickable.length !== group.length ? ` (${pickable.length} to apply)` : ""}</span></td></tr>`;
+    }
+    const inQ = queuedUrls.has(c.posting);
+    const dim = c.applied || c.closed || c.noSponsor || inQ || !c.posting;
+    return head + `<tr class="${dim ? "dim" : ""}">
+      <td><input type="checkbox" data-id="${c.id}" ${selected.has(c.id) ? "checked" : ""} ${dim ? "disabled" : ""}></td>
+      <td><b>${esc(c.company)}</b><div class="sub">${esc(c.platform)}${c.jobType ? " · " + esc(c.jobType) : ""}</div></td>
+      <td class="role">${esc(c.role)}
+        ${c.applied ? `<div class="sub">Already applied ${esc(c.applied)} · <a href="#" onclick="markApplied('${c.id}');return false">mark applied</a> · <a href="#" onclick="unapplied('${c.id}');return false" title="Wrongly marked: make it appliable again">Not applied</a></div>` : ""}
+        ${c.closed ? `<div class="sub warn">Closed: ${esc(c.closed)} · <a href="#" onclick="markClosed('${c.id}');return false">mark pass</a></div>` : ""}
+        ${c.noSponsor && !c.closed ? `<div class="sub warn" title="${esc(c.noSponsor)}">No sponsorship: “${esc(c.noSponsor.slice(0, 90))}” · <a href="#" onclick="markClosed('${c.id}','no_sponsorship');return false">mark pass</a></div>` : ""}
+        ${inQ ? `<div class="sub">In the queue</div>` : ""}
+        ${!c.applied && !c.closed && !c.noSponsor ? `<div class="sub">${c.posting ? `<a href="#" onclick="selfApplied('${c.id}');return false">I applied myself</a> · ` : ""}<a href="#" onclick="passCand('${c.id}');return false" title="Not applicable: mark it pass in the tracker and hide it">Pass</a></div>` : ""}
+        ${c.notes ? `<div class="sub">${esc(c.notes.slice(0, 120))}</div>` : ""}</td>
+      <td class="when"><span class="sub">Found</span> ${esc(day === "all" ? dayLabel(dayOf(c.created)) : fmtFound(c.created))}
+        <div data-posted="${c.id}">${fmtPosted(c.posted)}</div></td>
+      <td class="where" title="${esc(c.location)}">${esc(c.location.length > 48 ? c.location.slice(0, 46) + "…" : c.location)}<div class="sub"><a href="${esc(c.posting)}" target="_blank" rel="noopener">posting</a></div></td></tr>`;
+  }).join("") || `<tr><td colspan="5" class="muted">${day === todayStr() ? "Nothing new today yet. Add postings below (or with npm run add-job), then Refresh." : "No matching jobs."}</td></tr>`;
+  for (const cb of document.querySelectorAll("#cands input[data-id]")) cb.addEventListener("change", () => { cb.checked ? selected.add(cb.dataset.id) : selected.delete(cb.dataset.id); updateSel(); });
+  for (const cb of document.querySelectorAll("#cands input[data-group]")) cb.addEventListener("change", () => {
+    for (const r of rows) if (r.platform === cb.dataset.group && !(r.applied || r.closed || r.noSponsor || queuedUrls.has(r.posting) || !r.posting)) cb.checked ? selected.add(r.id) : selected.delete(r.id);
+    renderCands();
+  });
+  $("candInfo").textContent = `${rows.length} shown`;
+  updateSel();
+}
+function updateSel() { $("queueSel").disabled = !selected.size; $("queueSel").textContent = selected.size ? `Queue selected (${selected.size})` : "Queue selected"; }
+async function loadCands(refresh) {
+  try {
+    cands = await api(`/api/candidates${refresh ? "?refresh=1" : ""}`);
+    const plats = [...new Set(cands.map((c) => c.platform))].sort();
+    $("plat").innerHTML = `<option value="">All platforms</option>` + plats.sort((a, b) => platRank(a) - platRank(b)).map((p) => `<option value="${esc(p)}">${esc(platName(p))}</option>`).join("");
+    renderCands();
+  } catch (e) { $("cands").innerHTML = `<tr><td colspan="5" class="muted">Job tracker: ${esc(e.message)}</td></tr>`; }
+}
+async function selfApplied(id) {
+  const c = cands.find((x) => x.id === id);
+  if (!c || !confirm(`Mark ${c.company} — ${c.role} as applied (you submitted it yourself)?`)) return;
+  try { await api("/api/self-applied", c); cands = cands.filter((x) => x.id !== id); renderCands(); toast("Marked applied"); }
+  catch (e) { toast(e.message); }
+}
+async function unapplied(id) {
+  const c = cands.find((x) => x.id === id);
+  if (!c || !confirm(`${c.company} — ${c.role} is recorded as applied. Only continue if you did NOT submit it: the record is removed and it can be queued again.`)) return;
+  try { const r = await api("/api/unapplied", c); c.applied = null; renderCands(); toast(r.note); }
+  catch (e) { toast(e.message); }
+}
+async function markClosed(id, reason) {
+  const c = cands.find((x) => x.id === id);
+  if (!c) return;
+  try { await api("/api/closed", { ...c, evidence: reason === "no_sponsorship" ? c.noSponsor : c.closed, reason }); cands = cands.filter((x) => x.id !== id); renderCands(); toast("Marked pass"); }
+  catch (e) { toast(e.message); }
+}
+async function passCand(id) {
+  const c = cands.find((x) => x.id === id);
+  if (!c || !confirm(`Pass on ${c.company} — ${c.role}? The tracker marks it pass and it leaves this list.`)) return;
+  try { await api("/api/closed", { ...c, reason: "passed" }); cands = cands.filter((x) => x.id !== id); renderCands(); toast("Marked pass"); }
+  catch (e) { toast(e.message); }
+}
+async function markApplied(id) {
+  try { await api(`/api/tracker/${id}/status`, { status: "applied" }); cands = cands.filter((c) => c.id !== id); renderCands(); toast("Marked applied"); }
+  catch (e) { toast(e.message); }
+}
+
+// ---------- controls ----------
+$("cMinus").onclick = () => api("/api/settings", { concurrency: state.concurrency - 1 });
+$("cPlus").onclick = () => api("/api/settings", { concurrency: state.concurrency + 1 });
+$("pauseBtn").onclick = () => api("/api/settings", { paused: !state.paused });
+$("holdSlot").onchange = (e) => api("/api/settings", { reviewHoldsSlot: e.target.checked });
+$("refreshBtn").onclick = () => loadCands(true);
+for (const id of ["q", "plat", "hideApplied", "sortBy"]) $(id).addEventListener("input", renderCands);
+$("days").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; day = b.dataset.day; selected.clear(); $("selAll").checked = false; renderCands(); };
+$("selAll").onchange = (e) => { for (const cb of document.querySelectorAll("#cands input[data-id]:not(:disabled)")) { cb.checked = e.target.checked; e.target.checked ? selected.add(cb.dataset.id) : selected.delete(cb.dataset.id); } updateSel(); };
+$("queueSel").onclick = async () => {
+  const items = cands.filter((c) => selected.has(c.id)).map((c) => ({ url: c.posting, company: c.company, role: c.role, trackerId: c.id, priority: c.priority, location: c.location }));
+  const r = await api("/api/queue", { items }).catch((e) => toast(e.message));
+  if (r) { selected.clear(); $("selAll").checked = false; toast(`Queued ${r.added}${r.skipped.length ? `; skipped ${r.skipped.length}` : ""}${state.paused ? ". Press Resume." : ""}`); }
+};
+// "url | company | role" lines (company and role optional).
+const pastedItems = () => $("urls").value.split(/\n+/).map((l) => l.split("|").map((x) => x.trim())).filter(([u]) => /^https?:\/\//.test(u || "")).map(([url, company, role]) => ({ url, company: company || undefined, role: role || undefined }));
+$("trackUrls").onclick = async () => {
+  const items = pastedItems();
+  if (!items.length) return toast("Paste at least one http(s) URL");
+  const r = await api("/api/tracker/add", { items }).catch((e) => toast(e.message));
+  if (r) { $("urls").value = ""; toast(`Added ${r.added} to the tracker${r.added < items.length ? ` (${items.length - r.added} already tracked)` : ""}`); loadCands(true); }
+};
+$("addUrls").onclick = async () => {
+  const items = pastedItems();
+  if (!items.length) return toast("Paste at least one http(s) URL");
+  const r = await api("/api/queue", { items }).catch((e) => toast(e.message));
+  if (r) { $("urls").value = ""; toast(`Queued ${r.added}${r.skipped.length ? `; skipped: ${r.skipped.join(", ")}` : ""}`); }
+};
+
+// ---------- live updates ----------
+function connect() {
+  const es = new EventSource("/api/events");
+  es.addEventListener("open", () => $("conn").classList.add("on"));
+  es.addEventListener("state", (e) => {
+    const prevNeeds = state.jobs.filter((j) => NEEDS.includes(j.state)).length;
+    state = JSON.parse(e.data);
+    renderPipeline();
+    const nowNeeds = state.jobs.filter((j) => NEEDS.includes(j.state)).length;
+    if (nowNeeds > prevNeeds) toast("A job needs you");
+  });
+  es.addEventListener("status", (e) => {
+    const m = JSON.parse(e.data);
+    let closedNow = false;
+    for (const c of cands) {
+      const st = m[c.id];
+      if (!st) continue;
+      c.posted = st.posted; if ((st.closed && !c.closed) || (st.noSponsor && !c.noSponsor)) closedNow = true; c.closed = st.closed; c.noSponsor = st.noSponsor || null;
+      const td = document.querySelector(`[data-posted="${c.id}"]`); if (td) td.innerHTML = fmtPosted(c.posted);
+    }
+    if (closedNow) renderCands();
+  });
+  es.addEventListener("log", (e) => {
+    const { id, line } = JSON.parse(e.data);
+    const j = state.jobs.find((x) => x.id === id);
+    if (j) { j.logTail.push(line); if (j.logTail.length > 25) j.logTail.shift(); }
+  });
+  es.onerror = () => { $("conn").classList.remove("on"); };
+}
+connect();
+loadCands(false);
+</script>
+</body>
+</html>

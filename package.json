@@ -1,0 +1,39 @@
+{
+  "name": "apply-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fills job applications in parallel in your own Chrome and stops at the final Submit. You review and click Submit. Answers come from your own profile via Claude (Claude Code CLI) or Gemini.",
+  "scripts": {
+    "apply": "tsx src/cli.ts apply",
+    "status": "tsx src/cli.ts status",
+    "chrome": "tsx src/cli.ts chrome",
+    "check:stealth": "tsx src/cli.ts check-stealth",
+    "test:resolver": "tsx scripts/test-resolver.ts",
+    "typecheck": "tsc --noEmit",
+    "test:engine": "tsx scripts/test-engine.ts",
+    "test:agent": "tsx scripts/test-agent.ts",
+    "test:match": "tsx scripts/test-match.ts",
+    "debug:run": "tsx scripts/debug-run.ts",
+    "ui": "tsx src/server.ts",
+    "test:stuck": "tsx scripts/test-stuck.ts",
+    "test:sponsor": "tsx scripts/test-sponsor.ts",
+    "setup:check": "tsx scripts/setup-check.ts",
+    "add-job": "tsx src/cli.ts add-job",
+    "test:llm": "tsx scripts/test-llm.ts",
+    "setup": "tsx scripts/setup-check.ts --init"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@google/genai": "^2.30.0",
+    "patchright": "^1.64.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,5 @@
+node_modules/
+# Everything personal lives in data/: profile, resume, accounts, ledger, tracker, run logs, Chrome profile.
+data/
+.env
+*.log

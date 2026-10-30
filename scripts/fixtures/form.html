@@ -1,0 +1,52 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Job Application for Data Analyst at Acme Analytics</title>
+<style>body{font-family:sans-serif;max-width:720px;margin:24px auto} .q{margin:14px 0} .opt{padding:4px 10px;margin-right:6px} .opt.active{background:#333;color:#fff} [role=listbox]{border:1px solid #999;display:none} [role=option]{padding:3px}</style>
+</head><body>
+<h1>Data Analyst</h1><h2 id="step">Step 1 of 2: Your information</h2>
+<div id="p1">
+  <div class="q"><label for="fn">First Name *</label><input id="fn" required></div>
+  <div class="q"><label for="ln">Last Name *</label><input id="ln" required></div>
+  <div class="q"><label for="em">Email *</label><input id="em" type="email" required></div>
+  <div class="q"><label for="ph">Phone *</label><input id="ph" type="tel" required></div>
+  <div class="q"><label for="li">LinkedIn Profile</label><input id="li"></div>
+  <div class="q"><label for="cv">Resume/CV *</label><input id="cv" type="file" required></div>
+  <div class="q"><label for="src">How did you hear about us? *</label>
+    <div class="ctl"><input id="src" role="combobox" aria-autocomplete="list" aria-required="true" autocomplete="off"></div>
+    <div role="listbox" id="srclist"><div role="option">Company Website</div><div role="option">LinkedIn</div><div role="option">Indeed</div><div role="option">Referral</div></div>
+  </div>
+  <button type="button" id="next">Next</button>
+</div>
+<div id="p2" style="display:none">
+  <fieldset class="q"><legend>Are you legally authorized to work in the United States? *</legend>
+    <label><input type="radio" name="auth" value="y" required> Yes</label><label><input type="radio" name="auth" value="n"> No</label></fieldset>
+  <fieldset class="q"><legend>Will you now or in the future require sponsorship for employment visa status? *</legend>
+    <label><input type="radio" name="spon" value="y" required> Yes</label><label><input type="radio" name="spon" value="n"> No</label></fieldset>
+  <div class="q" id="visaq" style="display:none"><label for="visa">What visa type will you hold at your start date? *</label>
+    <select id="visa" required><option value="">Select...</option><option>F-1 OPT</option><option>F-1 STEM OPT</option><option>H-1B</option><option>Green card</option><option>Other</option></select></div>
+  <div class="q application-question"><div class="label">Have you previously worked for Acme Analytics? *</div><div><button type="button" class="opt">Yes</button><button type="button" class="opt">No</button></div></div>
+  <div class="q"><label for="gender">Gender</label><select id="gender"><option value="">Select...</option><option>Male</option><option>Female</option><option>Decline To Self Identify</option></select></div>
+  <div class="q"><label for="why">Why do you want to join Acme Analytics?</label><textarea id="why"></textarea></div>
+  <div class="q"><label for="crim">Have you been convicted of a felony in the last 7 years? *</label><select id="crim" required><option value="">Select...</option><option>Yes</option><option>No</option></select></div>
+  <div class="q"><label><input type="checkbox" id="tos" required> I have read and agree to the Candidate Privacy Notice and Terms *</label></div>
+  <div class="q"><label><input type="checkbox" id="sms"> Send me text messages about future job opportunities</label></div>
+  <button type="button" id="submit">Submit Application</button>
+</div>
+<div id="done" style="display:none"><h2>Thank you for applying!</h2><p>Your application has been received.</p></div>
+<script>
+  const $ = (s) => document.querySelector(s);
+  const src = $("#src"), list = $("#srclist");
+  src.addEventListener("focus", () => list.style.display = "block");
+  src.addEventListener("click", () => list.style.display = "block");
+  src.addEventListener("input", () => { list.style.display = "block"; for (const o of list.children) o.style.display = o.textContent.toLowerCase().includes(src.value.toLowerCase()) ? "" : "none"; });
+  src.addEventListener("keydown", (e) => { if (e.key === "Escape") list.style.display = "none"; });
+  for (const o of list.children) o.addEventListener("click", () => { src.value = o.textContent; list.style.display = "none"; });
+  document.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => { b.parentElement.querySelectorAll(".opt").forEach((x) => x.classList.remove("active")); b.classList.add("active"); b.setAttribute("aria-pressed", "true"); }));
+  document.querySelectorAll("input[name=spon]").forEach((r) => r.addEventListener("change", () => $("#visaq").style.display = $("input[name=spon][value=y]").checked ? "" : "none"));
+  $("#next").addEventListener("click", () => {
+    const req = ["#fn", "#ln", "#em", "#ph"].filter((s) => !$(s).value);
+    if (req.length || !$("#cv").files.length || !src.value) { alert("missing: " + req.join(",")); return; }
+    $("#p1").style.display = "none"; $("#p2").style.display = ""; $("#step").textContent = "Step 2 of 2: Questions";
+  });
+  $("#submit").addEventListener("click", () => { window.__submitted = true; $("#p2").style.display = "none"; $("#done").style.display = ""; });
+</script>
+</body></html>

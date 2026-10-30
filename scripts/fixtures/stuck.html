@@ -1,0 +1,7 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Loading…</title></head><body>
+<div id="app"><div role="progressbar" aria-busy="true">Loading…</div></div>
+<script>
+  // First visit hangs on a spinner forever (like Workday after sign-in); a reload loads the form.
+  if (!sessionStorage.getItem("seen")) { sessionStorage.setItem("seen", "1"); }
+  else document.getElementById("app").innerHTML = '<h1>My Information</h1><label for="fn">First Name *</label><input id="fn" required><label for="ln">Last Name *</label><input id="ln" required><button type="button" onclick="this.textContent=\'Submit\'">Submit</button>';
+</script></body></html>
