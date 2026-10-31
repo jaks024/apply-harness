@@ -247,7 +247,7 @@ function eduValue(kind: string, e: Edu): string | null {
 // ---------- written answers (agent model) ----------
 // Open-ended questions get their own model call with a writing brief, then a quality gate. Field-answer models have
 // produced run-on, punctuation-free text and mid-sentence language switches here.
-const WRITTEN_Q = /\b(describe|why|tell us|explain|walk us through|share|how (do|did|would|have)|what (interests|excites|motivates|draws|attracts|makes you)|in which|give (us )?an example|cover letter|summar)/i;
+const WRITTEN_Q = /\b(describe|why|tell us|explain|walk us through|share|how (do|did|would|have)|what (interests|excites|motivates|draws|attracts|makes you)|in which|give (us )?an example|cover letter|summar|what (kinds?|types?|sorts?) of|what (skills|areas)\b|what (do|would) you (hope|want|bring|enjoy|like)|interested in (developing|learning|growing|building)|(hope|want|plan|looking|like) to (learn|develop|grow|gain|build)|career (goals?|aspirations?|plans?)|next (few|two|three|five|\d+) years|strengths?\b|weakness)/i;
 /** The candidate's floor (answers.compensation.hourly_minimum): a bare hourly figure below it is raised to it. */
 function salaryFloor(f: Field, v: string): string {
   const min = Number((answers as { compensation?: { hourly_minimum?: number } }).compensation?.hourly_minimum ?? 0);
@@ -382,5 +382,13 @@ async function quickBatch(pending: Field[], job: LlmJob): Promise<Decision[]> {
     ask = prompt.replace(/# Fields to answer\n[\s\S]*$/, `# Fields to answer (every one needs a decision)\n${JSON.stringify(missing)}`);
   }
   const numeric = (f: Field, v: string) => (f.kind === "number" ? v.replace(/,/g, "").match(/-?\d+(\.\d+)?/)?.[0] ?? v : v);
-  return [...got.values()].map((d) => ({ ...d, value: d.value === undefined ? undefined : numeric(byRef.get(d.ref)!, salaryFloor(byRef.get(d.ref)!, englishOnly(d.value))), label: byRef.get(d.ref)!.label, source: "llm" as const }));
+  const out: Decision[] = [...got.values()].map((d) => ({ ...d, value: d.value === undefined ? undefined : numeric(byRef.get(d.ref)!, salaryFloor(byRef.get(d.ref)!, englishOnly(d.value))), label: byRef.get(d.ref)!.label, source: "llm" as const }));
+  // The batch model sometimes writes a paragraph anyway (an open question the writer's pattern missed), and can loop
+  // into one endless run-on sentence. Any long or broken text answer goes back through the writer and its gate.
+  return Promise.all(out.map(async (d) => {
+    const f = byRef.get(d.ref)!;
+    const words = (d.value ?? "").split(/\s+/).filter(Boolean).length;
+    if (d.action !== "fill" || !["text", "textarea"].includes(f.kind) || words <= 25 || (words <= 60 && !writingProblems(d.value!).length)) return d;
+    return writeAnswer(f, job).catch(() => ({ ...d, action: f.required ? "flag" as const : "skip" as const, value: undefined, reason: "the batch answer was a run-on and the writer failed" }));
+  }));
 }
