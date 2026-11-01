@@ -73,6 +73,33 @@ async function fillPage(page: Page, ctx: JobCtx, snap: Snapshot, done: Set<strin
     password: ctx.useAltPassword ? altPassword() : ctx.useShortPassword ? accounts.short_password : accounts.password,
     accountEmail: ctx.useFallbackEmail ? accounts.fallback_email : undefined,
   });
+  // Two boxes on one page under the same legal-name label means one is mislabelled (a Middle Name box read as "Last
+  // Name" gets the last name twice). Only the real one is filled: the one whose ids say so, else by page order (forms
+  // go First, Middle, Last: the last "Last Name" box, the first "First Name" box). The others are left blank and
+  // flagged (or cleared, if they already hold a copy), with their ids in the log for diagnosis.
+  const nameLabel = (l: string) => l.toLowerCase().replace(/[*✱]/g, "").replace(/^legal /, "").trim().match(/^(first|last|family|given) name$/)?.[1];
+  for (const which of ["first", "last"]) {
+    const boxes = snap.fields.filter((f) => { const n = nameLabel(f.label); return n === which || (which === "first" && n === "given") || (which === "last" && n === "family"); });
+    if (boxes.length < 2) continue;
+    const real = boxes.find((f) => new RegExp(`${which}Name\\b`, "i").test(f.marks ?? "") && !/middle|preferred|secondary/i.test(f.marks ?? ""))
+      ?? (which === "last" ? boxes[boxes.length - 1] : boxes[0]);
+    for (const f of boxes) {
+      if (f === real) continue;
+      // Already holding a copy of the real box's name (an earlier pass, or a saved Workday draft): clear it.
+      const realValue = decided.find((d) => d.ref === real.ref)?.value ?? real.value;
+      if (f.filled && realValue && f.value.trim().toLowerCase() === realValue.trim().toLowerCase() && !decided.some((d) => d.ref === f.ref)) {
+        ctx.log(`two boxes labelled "${f.label}"; clearing the copy in the second (ids: ${f.marks ?? "none"}; kept ${real.marks ?? real.ref})`);
+        if (!todo.includes(f)) todo.push(f);
+        decided.push({ ref: f.ref, label: f.label, action: "fill", value: "", source: "builtin", reason: "cleared a copied name" });
+        continue;
+      }
+      const i = decided.findIndex((d) => d.ref === f.ref);
+      if (i >= 0 && decided[i].action === "fill") {
+        ctx.log(`two boxes labelled "${f.label}"; leaving the second blank (ids: ${f.marks ?? "none"}; kept ${real.marks ?? real.ref})`);
+        decided[i] = { ref: f.ref, label: f.label, action: "flag", source: "builtin", reason: `A second box labelled "${f.label}" (probably Middle Name); left blank, check it` };
+      }
+    }
+  }
   const host = new URL(snap.url).hostname;
   let changed = 0;
   let stale = 0;

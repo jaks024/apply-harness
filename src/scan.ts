@@ -16,6 +16,8 @@ export interface Field {
   placeholder?: string;
   error?: string;
   automationId?: string;
+  /** id / name / automation ids of a name box, for diagnosing mislabelled Workday name fields. */
+  marks?: string;
 }
 
 export interface Button { ref: string; frame: number; text: string; disabled: boolean }
@@ -62,18 +64,28 @@ function scanInFrame(prefix: string): FrameScan {
   const hostText = (el: Element) => { const r = el.getRootNode(); return r instanceof ShadowRoot ? txt(r.host) : ""; };
   const containerSel = '[data-automation-id^="formField"], fieldset, [role="group"], [role="radiogroup"], .field, .form-group, .application-question, .application-field, [class*="question" i], [class*="formfield" i], [class*="FormField"], [class*="field-wrapper" i], [class*="field-entry" i], [class*="fieldEntry"], li';
 
+  /** Everything that can name a Workday name box's part: id, name, its own and its wrapper's data-automation-id. */
+  function nameMarks(el: Element): string {
+    const wrap = el.closest('[data-automation-id^="formField"]');
+    return `${(el as HTMLElement).id} ${el.getAttribute("name") ?? ""} ${el.getAttribute("data-automation-id") ?? ""} ${wrap?.getAttribute("data-automation-id") ?? ""}`;
+  }
+
   function labelOf(el: Element): string {
     let base = labelOf0(el);
-    // Workday name boxes: the id says which part it is (name--legalName--lastName). Some tenants' label lookup lands on
-    // the neighbouring box's label, so Last Name read "Middle Name" and got "N/A". Trust the id.
-    const part = `${(el as HTMLElement).id} ${el.getAttribute("name") ?? ""}`.match(/Name--(firstName|middleName|lastName|secondaryLastName)\b/i)?.[1].toLowerCase();
+    // Workday name boxes: the ids say which part it is. Some tenants' label lookup lands on the neighbouring box's
+    // label, so Last Name read "Middle Name" (and got "N/A"), or Middle Name read "Last Name" (and got the last name
+    // twice). Tenants mark the part in the id ("name--legalName--lastName"), the name, the input's data-automation-id
+    // ("legalNameSection_middleName") or the field wrapper's ("formField-legalName--middleName"). Trust those.
+    const marks = nameMarks(el);
+    const part = marks.match(/(?:Name--|NameSection_|Name_)(firstName|middleName|lastName|secondaryLastName)\b/i)?.[1].toLowerCase();
     if (part) {
       const want: Record<string, [string, RegExp]> = { firstname: ["First Name", /first|given/i], middlename: ["Middle Name", /middle/i], lastname: ["Last Name", /last|family|surname/i], secondarylastname: ["Second Last Name", /second/i] };
       const [name, ok] = want[part];
-      if (!ok.test(base)) base = /[*✱]\s*$/.test(base) ? `${name} *` : name;
+      // A borrowed label's star belongs to the neighbour; a "required" Middle Name would bypass its skip rule.
+      if (!ok.test(base)) base = /[*✱]\s*$/.test(base) && part !== "middlename" ? `${name} *` : name;
     }
     // Workday's preferred-name boxes are labelled just "First Name"/"Last Name"; only their ids say preferredName.
-    if (/preferredName/i.test(`${(el as HTMLElement).id} ${el.getAttribute("name") ?? ""}`) && !/preferred/i.test(base)) return `Preferred ${base.trim()}`;
+    if (/preferredName/i.test(marks) && !/preferred/i.test(base)) return `Preferred ${base.trim()}`;
     // Workday dates: two spin boxes labelled "Month" and "Year" inside a fieldset whose legend says From / To.
     if (/^(month|year|day)$/i.test(base.trim())) {
       const lg = el.closest("fieldset")?.querySelector("legend");
@@ -223,7 +235,7 @@ function scanInFrame(prefix: string): FrameScan {
     }
     const kind = (["email", "tel", "url", "number", "date", "password", "textarea"].includes(type) ? type : "text") as FieldKind;
     const v = (el as HTMLInputElement).value ?? "";
-    fields.push({ ref: tag(el), kind, label: clean(label), required, value: kind === "password" ? (v ? "••••" : "") : v, filled: !!v.trim(), placeholder: el.getAttribute("placeholder") ?? undefined, automationId: el.getAttribute("data-automation-id") ?? undefined, error: el.getAttribute("aria-invalid") === "true" ? "invalid" : undefined });
+    fields.push({ ref: tag(el), kind, label: clean(label), required, value: kind === "password" ? (v ? "••••" : "") : v, filled: !!v.trim(), placeholder: el.getAttribute("placeholder") ?? undefined, automationId: el.getAttribute("data-automation-id") ?? undefined, error: el.getAttribute("aria-invalid") === "true" ? "invalid" : undefined, marks: /name/i.test(label) ? nameMarks(el).replace(/\s+/g, " ").trim() || undefined : undefined });
   }
 
   const optLabel = (o: HTMLInputElement) => {

@@ -61,7 +61,7 @@ const memory = new Map<string, string>();
 for (const m of readJsonl<{ key: string; value: string }>(config.paths.fieldMemory)) memory.set(m.key, m.value);
 
 export function remember(f: Field, value: string, source: Source, host: string) {
-  if (source === "file" || source === "consent" || f.kind === "password") return;
+  if (source === "file" || source === "consent" || f.kind === "password" || !value.trim()) return;
   // Written answers are company-specific ("Why do you want to join X?"); never replay them on another form.
   if (f.kind === "textarea" || value.length > 80) return;
   // No question text, no memory (it would replay on every unlabeled box); salary answers depend on the posting.
